@@ -1084,9 +1084,11 @@ export default function Home() {
             <div className={styles.heroContent}>
               <p className={styles.heroEyebrow}>ADHD를 위한 Untangle</p>
               <h1 className={styles.heroTitle}>
-                함께 생각을 정리하고
+                해야할 일은 아는데,
                 <br />
-                나를 이해하는 파트너
+                시작이 안되는 날을 위한
+                <br />
+                AI 파트너
               </h1>
               <p className={styles.heroBody}>
                 하루를 정리하고, 내 뇌를 더 잘 이해하고, 삶을 바꾸도록 설계된
@@ -1099,9 +1101,6 @@ export default function Home() {
                   onClick={() => track("cta_clicked", { location: "hero" })}
                 >
                   사전 등록하기
-                  <span className={styles.ctaArrow} aria-hidden="true">
-                    →
-                  </span>
                 </a>
               </div>
             </div>
@@ -1124,7 +1123,7 @@ export default function Home() {
         >
           <div className={styles.containerNarrow}>
             <h2 className={styles.introTitle}>
-              Untangle, ADHD를 위한 올인원 관리 파트너
+              ADHD를 위한 정리 파트너
             </h2>
             <p className={styles.introSubtitle}>
               당신의 삶에 맞춰 반응하는 AI 지원으로 집중력을 높이고, 다시 앞으로
