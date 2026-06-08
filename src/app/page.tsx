@@ -528,21 +528,6 @@ export default function Home() {
 
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.footerTop}>
-          <p>
-            Untangle is your personal AI Coach and ADHD Assistant helping you
-            learn, grow, and get more done.
-          </p>
-        </div>
-        <div className={styles.footerBottom}>
-          <p>© Rethinkifi, LLC</p>
-          <p>
-            <a href="https://helloari.ai/privacy/">Privacy</a> |{" "}
-            <a href="https://helloari.ai/terms/">Terms of Use</a>
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
