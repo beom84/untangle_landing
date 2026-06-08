@@ -1,3 +1,5 @@
+import { LANDING_VARIANT } from "@/lib/experiment";
+
 type SurveyBody = {
   submissionKey: string;
   step: number;
@@ -48,6 +50,7 @@ export async function POST(request: Request) {
       surveyCompleted: completed,
       surveyCompletedAt: completed ? updatedAt : "",
       updatedAt,
+      variant: LANDING_VARIANT,
     }),
   });
 

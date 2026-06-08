@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { initAmplitude, track } from "@/lib/amplitude";
 import type { ContactMode } from "@/lib/contact";
 import { normalizeContactValue, normalizePhoneNumber } from "@/lib/contact";
+import { LANDING_VARIANT, type LandingVariant } from "@/lib/experiment";
 import styles from "./page.module.css";
 
 type Feature = {
@@ -101,6 +102,7 @@ type RegisterRequestPayload = {
   contactMode: ContactMode;
   value: string;
   submissionKey: string;
+  variant: LandingVariant;
 };
 
 type SurveyRequestPayload = {
@@ -710,7 +712,7 @@ export default function Home() {
 
   useEffect(() => {
     initAmplitude();
-    track("page_viewed");
+    track("page_viewed", { variant: LANDING_VARIANT });
 
     const sections = document.querySelectorAll("[data-section]");
     const observer = new IntersectionObserver(
@@ -905,12 +907,14 @@ export default function Home() {
         contactMode,
         value: normalizedValue,
         submissionKey: nextSubmissionKey,
+        variant: LANDING_VARIANT,
       });
 
       setSurveyStatusMessage("다음 버튼을 누르면 답변이 저장됩니다.");
       track("registration_success", {
         contact_mode: contactMode,
         submission_key: nextSubmissionKey,
+        variant: LANDING_VARIANT,
       });
     } catch (error) {
       const message =

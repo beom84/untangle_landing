@@ -1,9 +1,11 @@
 import { ContactMode, normalizeContactValue } from "@/lib/contact";
+import { LANDING_VARIANT, type LandingVariant } from "@/lib/experiment";
 
 type RegisterBody = {
   contactMode: ContactMode;
   value: string;
   submissionKey?: string;
+  variant?: LandingVariant;
 };
 
 export async function POST(request: Request) {
@@ -16,7 +18,12 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as RegisterBody;
-  const { contactMode, value, submissionKey: providedSubmissionKey } = body;
+  const {
+    contactMode,
+    value,
+    submissionKey: providedSubmissionKey,
+    variant = LANDING_VARIANT,
+  } = body;
 
   if (!contactMode || !value) {
     return Response.json({ error: "Missing fields" }, { status: 400 });
@@ -40,6 +47,7 @@ export async function POST(request: Request) {
       contactMode,
       contactValue: normalizedValue,
       value: normalizedValue,
+      variant,
     }),
   });
 

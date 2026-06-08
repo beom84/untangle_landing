@@ -1,6 +1,13 @@
 import * as amplitude from "@amplitude/analytics-browser";
+import { LANDING_VARIANT } from "@/lib/experiment";
 
 let initialized = false;
+
+function getDefaultEventProps() {
+  return {
+    landing_variant: LANDING_VARIANT,
+  };
+}
 
 export function initAmplitude() {
   const apiKey = process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY;
@@ -11,5 +18,8 @@ export function initAmplitude() {
 
 export function track(event: string, props?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
-  amplitude.track(event, props);
+  amplitude.track(event, {
+    ...getDefaultEventProps(),
+    ...props,
+  });
 }

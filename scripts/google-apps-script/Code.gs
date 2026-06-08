@@ -13,6 +13,7 @@ const HEADERS = [
   "surveyCompleted",
   "surveyCompletedAt",
   "updatedAt",
+  "variant",
 ];
 
 function doGet() {
@@ -98,6 +99,7 @@ function upsertRegistration_(sheet, payload) {
   record.contactMode = payload.contactMode;
   record.contactValue = payload.contactValue;
   record.updatedAt = payload.createdAt;
+  record.variant = payload.variant || record.variant || "";
 
   writeRecord_(sheet, rowIndex, record);
 }
@@ -117,6 +119,7 @@ function upsertSurvey_(sheet, payload) {
   record.surveyCompleted = Boolean(payload.surveyCompleted);
   record.surveyCompletedAt = payload.surveyCompletedAt || "";
   record.updatedAt = payload.updatedAt || new Date().toISOString();
+  record.variant = payload.variant || record.variant || "";
 
   writeRecord_(sheet, rowIndex, record);
 }

@@ -17,6 +17,7 @@ Copy [.env.local.example](/Users/beom/Documents/untangle_landing/untangle_adhd/.
 
 - `APPS_SCRIPT_URL`: Google Apps Script web app URL for registration and survey writes
 - `NEXT_PUBLIC_AMPLITUDE_API_KEY`: Amplitude browser key
+- `NEXT_PUBLIC_LANDING_VARIANT`: Optional override for the default `v1` variant label
 
 ## Google Sheets Integration
 
@@ -46,6 +47,7 @@ biggestGap
 surveyCompleted
 surveyCompletedAt
 updatedAt
+variant
 ```
 
 The script will also create or reset these headers automatically.
