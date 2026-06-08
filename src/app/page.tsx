@@ -252,6 +252,11 @@ export default function Home() {
           <a className={styles.brand} href="#top" aria-label="Untangle home">
             <span className={styles.brandText}>Untangle</span>
           </a>
+          <nav className={styles.headerNav} aria-label="페이지 섹션">
+            <a href="#intro">기능 소개</a>
+            <a href="#features">주요 기능</a>
+            <a href="#pre-register">ADHD 데이터</a>
+          </nav>
           <a className={styles.topbarCta} href="#pre-register">
             사전 등록하기
           </a>
@@ -294,7 +299,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.introSection}>
+        <section id="intro" className={styles.introSection}>
           <div className={styles.containerNarrow}>
             <h2 className={styles.introTitle}>
               Untangle, ADHD를 위한 올인원 관리 파트너
@@ -317,7 +322,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.featuresSection}>
+        <section id="features" className={styles.featuresSection}>
           <div className={styles.container}>
             {features.map((feature) => {
               const title = feature.title.replace(
