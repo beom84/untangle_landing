@@ -1084,11 +1084,9 @@ export default function Home() {
             <div className={styles.heroContent}>
               <p className={styles.heroEyebrow}>ADHD를 위한 Untangle</p>
               <h1 className={styles.heroTitle}>
-                해야할 일은 아는데,
+                머릿속이 복잡해서 멈춰버릴 때,
                 <br />
-                시작이 안되는 날을 위한
-                <br />
-                AI 파트너
+                당신의 다음 행동을 정리해주는 AI
               </h1>
               <p className={styles.heroBody}>
                 하루를 정리하고, 내 뇌를 더 잘 이해하고, 삶을 바꾸도록 설계된
