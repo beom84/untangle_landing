@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
+import { initAmplitude, track } from "@/lib/amplitude";
 
 type Feature = {
   eyebrow: string;
@@ -243,6 +244,28 @@ export default function Home() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    initAmplitude();
+    track("page_viewed");
+
+    const sections = document.querySelectorAll("[data-section]");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            track("section_viewed", {
+              section: entry.target.getAttribute("data-section"),
+            });
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className={styles.page}>
       <header
@@ -253,18 +276,18 @@ export default function Home() {
             <span className={styles.brandText}>Untangle</span>
           </a>
           <nav className={styles.headerNav} aria-label="페이지 섹션">
-            <a href="#intro">기능 소개</a>
-            <a href="#features">주요 기능</a>
-            <a href="#pre-register">ADHD 데이터</a>
+            <a href="#intro" onClick={() => track("nav_clicked", { destination: "intro" })}>기능 소개</a>
+            <a href="#features" onClick={() => track("nav_clicked", { destination: "features" })}>주요 기능</a>
+            <a href="#pre-register" onClick={() => track("nav_clicked", { destination: "stats" })}>ADHD 데이터</a>
           </nav>
-          <a className={styles.topbarCta} href="#pre-register">
+          <a className={styles.topbarCta} href="#pre-register" onClick={() => track("cta_clicked", { location: "topbar" })}>
             사전 등록하기
           </a>
         </div>
       </header>
 
       <main id="top">
-        <section className={styles.heroShell}>
+        <section className={styles.heroShell} data-section="hero">
           <div className={styles.hero}>
             <div className={styles.heroContent}>
               <p className={styles.heroEyebrow}>ADHD를 위한 Untangle</p>
@@ -281,6 +304,7 @@ export default function Home() {
                 <a
                   className={styles.ctaPrimary}
                   href="#pre-register"
+                  onClick={() => track("cta_clicked", { location: "hero" })}
                 >
                   사전 등록하기
                   <span className={styles.ctaArrow} aria-hidden="true">→</span>
@@ -299,7 +323,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="intro" className={styles.introSection}>
+        <section id="intro" className={styles.introSection} data-section="intro">
           <div className={styles.containerNarrow}>
             <h2 className={styles.introTitle}>
               Untangle, ADHD를 위한 올인원 관리 파트너
@@ -322,7 +346,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className={styles.featuresSection}>
+        <section id="features" className={styles.featuresSection} data-section="features">
           <div className={styles.container}>
             {features.map((feature) => {
               const title = feature.title.replace(
@@ -384,7 +408,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="pre-register" className={styles.statsSection}>
+        <section id="pre-register" className={styles.statsSection} data-section="stats">
           <div className={styles.container}>
             <h2 className={styles.statsTitle}>
               ADHD, 우리가 이 문제에 집중하는 이유
@@ -394,7 +418,7 @@ export default function Home() {
                 <article key={stat.value} className={styles.statCard}>
                   <div className={styles.statValue}>{stat.value}</div>
                   <p>{stat.text}</p>
-                  <a href={stat.sourceHref} target="_blank" rel="noreferrer">
+                  <a href={stat.sourceHref} target="_blank" rel="noreferrer" onClick={() => track("stat_source_clicked", { source: stat.sourceLabel })}>
                     ({stat.sourceLabel})
                   </a>
                 </article>
@@ -408,6 +432,7 @@ export default function Home() {
                 const input = form.querySelector("input") as HTMLInputElement;
                 setIsSubmitting(true);
                 setSubmitError(null);
+                track("registration_submitted", { contact_mode: contactMode });
                 try {
                   const res = await fetch("/api/register", {
                     method: "POST",
@@ -415,8 +440,11 @@ export default function Home() {
                     body: JSON.stringify({ contactMode, value: input.value }),
                   });
                   if (!res.ok) throw new Error("서버 오류가 발생했습니다.");
+                  track("registration_success", { contact_mode: contactMode });
                   setIsSuccess(true);
-                } catch {
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : "알 수 없는 오류";
+                  track("registration_error", { contact_mode: contactMode, error: message });
                   setSubmitError("등록 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
                 } finally {
                   setIsSubmitting(false);
@@ -444,7 +472,7 @@ export default function Home() {
                         contactMode === "phone" ? styles.contactToggleButtonActive : ""
                       }`}
                       aria-pressed={contactMode === "phone"}
-                      onClick={() => setContactMode("phone")}
+                      onClick={() => { setContactMode("phone"); track("contact_mode_changed", { mode: "phone" }); }}
                     >
                       전화번호
                     </button>
@@ -454,7 +482,7 @@ export default function Home() {
                         contactMode === "email" ? styles.contactToggleButtonActive : ""
                       }`}
                       aria-pressed={contactMode === "email"}
-                      onClick={() => setContactMode("email")}
+                      onClick={() => { setContactMode("email"); track("contact_mode_changed", { mode: "email" }); }}
                     >
                       이메일
                     </button>
