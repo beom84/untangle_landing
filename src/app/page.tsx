@@ -65,8 +65,8 @@ const features: Feature[] = [
     image: {
       src: "/source-assets/feature-1-cutout.png",
       alt: "Untangle task planner screenshot",
-      width: 535,
-      height: 728,
+      width: 1070,
+      height: 1456,
     },
   },
   {
@@ -83,8 +83,8 @@ const features: Feature[] = [
     image: {
       src: "/source-assets/feature-2-cutout.png",
       alt: "Untangle coaching support screenshot",
-      width: 535,
-      height: 728,
+      width: 1070,
+      height: 1456,
     },
     reverse: true,
   },
@@ -101,8 +101,8 @@ const features: Feature[] = [
     image: {
       src: "/source-assets/feature-3-cutout.png",
       alt: "Untangle proactive messages screenshot",
-      width: 540,
-      height: 722,
+      width: 1080,
+      height: 1444,
     },
     visualTone: "dark",
   },
@@ -315,8 +315,8 @@ export default function Home() {
                 <Image
                   src="/source-assets/hero-phone-cutout-v2.png"
                   alt="Untangle mobile app preview"
-                  width={495}
-                  height={977}
+                  width={1029}
+                  height={1528}
                   priority
                 />
             </div>
