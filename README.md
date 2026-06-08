@@ -1,37 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Untangle ADHD Landing
 
-## Getting Started
+Landing page for Untangle's ADHD-focused pre-registration flow.
 
-First, run the development server:
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy [.env.local.example](/Users/beom/Documents/untangle_landing/untangle_adhd/.env.local.example) to `.env.local` and fill in:
 
-## Learn More
+- `APPS_SCRIPT_URL`: Google Apps Script web app URL for registration and survey writes
+- `NEXT_PUBLIC_AMPLITUDE_API_KEY`: Amplitude browser key
 
-To learn more about Next.js, take a look at the following resources:
+## Google Sheets Integration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The app sends all writes through two server routes:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [src/app/api/register/route.ts](/Users/beom/Documents/untangle_landing/untangle_adhd/src/app/api/register/route.ts:1)
+- [src/app/api/survey/route.ts](/Users/beom/Documents/untangle_landing/untangle_adhd/src/app/api/survey/route.ts:1)
 
-## Deploy on Vercel
+Both routes post to the same Apps Script web app.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 1. Create the Sheet
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# untangle_landing
+Create a Google Sheet and name the first tab `registrations`.
+
+Recommended columns:
+
+```text
+createdAt
+submissionKey
+contactMode
+contactValue
+surveyStep
+painMoment
+currentMethods
+currentMethodsOther
+biggestGap
+surveyCompleted
+surveyCompletedAt
+updatedAt
+```
+
+The script will also create or reset these headers automatically.
+
+### 2. Paste the Apps Script
+
+Use [scripts/google-apps-script/Code.gs](/Users/beom/Documents/untangle_landing/untangle_adhd/scripts/google-apps-script/Code.gs:1) as the contents of your Apps Script project.
+
+### 3. Deploy the Script
+
+1. Open the sheet.
+2. Go to `Extensions` -> `Apps Script`.
+3. Paste `Code.gs`.
+4. Click `Deploy` -> `New deployment`.
+5. Choose `Web app`.
+6. Set `Execute as`: `Me`.
+7. Set `Who has access`: `Anyone`.
+8. Copy the `/exec` URL into `APPS_SCRIPT_URL`.
+
+### 4. Verify the Flow
+
+1. Submit a phone number or email on the landing page.
+2. Confirm a new row appears with `submissionKey`.
+3. Complete survey step 1, then refresh the page.
+4. Confirm the draft is restored and `surveyStep` is updated.
+5. Finish step 3 and confirm `surveyCompleted` becomes `TRUE`.
+
+## Notes
+
+- Phone numbers are normalized before saving.
+- Survey progress is auto-saved during typing and on each step transition.
+- The browser also keeps a local draft so users can resume on the same device.

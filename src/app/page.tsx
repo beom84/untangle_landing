@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import styles from "./page.module.css";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { initAmplitude, track } from "@/lib/amplitude";
+import type { ContactMode } from "@/lib/contact";
+import { normalizeContactValue, normalizePhoneNumber } from "@/lib/contact";
+import styles from "./page.module.css";
 
 type Feature = {
   eyebrow: string;
@@ -32,6 +34,188 @@ type Faq = {
   question: string;
   answer: string[];
 };
+
+type SurveyMethod =
+  | "endure"
+  | "notes"
+  | "calendar"
+  | "ai"
+  | "support"
+  | "other";
+
+type PainMomentOption =
+  | "deadline_rush"
+  | "cant_start"
+  | "didnt_recheck"
+  | "missed_priority"
+  | "lost_focus"
+  | "plan_fell_apart"
+  | "froze_from_volume"
+  | "forgot_schedule"
+  | "none";
+
+type BiggestGapOption =
+  | "record_only"
+  | "priority_hard"
+  | "plan_fell_apart"
+  | "still_procrastinate"
+  | "hard_to_understand"
+  | "replanning_is_annoying"
+  | "too_many_apps"
+  | "not_personal"
+  | "no_major_issue"
+  | "other";
+
+type SurveyStep = 1 | 2 | 3;
+
+type SurveyStage = SurveyStep | "done" | null;
+
+type SurveyDraft = {
+  currentStep: SurveyStep;
+  painMoment: PainMomentOption | "";
+  currentMethods: SurveyMethod[];
+  currentMethodsOther: string;
+  biggestGapSelections: BiggestGapOption[];
+  biggestGapOther: string;
+};
+
+type SurveyStorage = {
+  contactMode: ContactMode;
+  contactValue: string;
+  submissionKey: string;
+  surveyDraft: SurveyDraft;
+  surveyCompleted: boolean;
+};
+
+type LegacySurveyDraft = Partial<SurveyDraft> & {
+  currentStep?: number;
+  painMoment?: string;
+  currentMethods?: SurveyMethod[];
+  currentMethodsOther?: string;
+  biggestGap?: string;
+  biggestGapSelections?: BiggestGapOption[];
+  biggestGapOther?: string;
+};
+
+type RegisterRequestPayload = {
+  contactMode: ContactMode;
+  value: string;
+  submissionKey: string;
+};
+
+type SurveyRequestPayload = {
+  submissionKey: string;
+  step: SurveyStep;
+  painMoment: string;
+  currentMethods: SurveyMethod[];
+  currentMethodsOther: string;
+  biggestGap: string;
+  completed: boolean;
+};
+
+type RestoredSurveyState = {
+  contactMode: ContactMode;
+  contactValue: string;
+  registrationSubmitted: boolean;
+  submissionKey: string | null;
+  surveyDraft: SurveyDraft;
+  surveyStage: SurveyStage;
+  isSurveyComplete: boolean;
+  surveyStatusMessage: string | null;
+};
+
+const SURVEY_STORAGE_KEY = "untangle-survey-progress";
+
+const painMomentOptions: { id: PainMomentOption; label: string }[] = [
+  {
+    id: "deadline_rush",
+    label: "해야 할 일을 미루다가 마감 직전에 몰아서 했어요",
+  },
+  {
+    id: "cant_start",
+    label: "뭘 해야 할지 알지만 시작을 못 했어요",
+  },
+  {
+    id: "didnt_recheck",
+    label: "할 일을 적어뒀지만 다시 확인하지 않았어요",
+  },
+  {
+    id: "missed_priority",
+    label: "이것저것 하다가 중요한 일을 놓쳤어요",
+  },
+  {
+    id: "lost_focus",
+    label: "집중하려고 했지만 금방 다른 생각이나 행동으로 넘어갔어요",
+  },
+  {
+    id: "plan_fell_apart",
+    label: "계획은 세웠지만 하루가 지나면 흐트러졌어요",
+  },
+  {
+    id: "froze_from_volume",
+    label: "해야 할 일이 너무 많아 보여서 그냥 멈춰 있었어요",
+  },
+  {
+    id: "forgot_schedule",
+    label: "약속, 일정, 제출일을 깜빡한 적이 있어요",
+  },
+  {
+    id: "none",
+    label: "해당되는 게 없어요",
+  },
+];
+
+const surveyOptions: { id: SurveyMethod; label: string }[] = [
+  { id: "endure", label: "그냥 버티고 있어요" },
+  { id: "notes", label: "메모/투두앱을 써요" },
+  { id: "calendar", label: "캘린더/알람을 써요" },
+  { id: "ai", label: "AI를 써요" },
+  { id: "support", label: "약/상담/주변 도움을 받아요" },
+  { id: "other", label: "기타" },
+];
+
+const biggestGapOptions: { id: BiggestGapOption; label: string }[] = [
+  {
+    id: "record_only",
+    label: "적어두기만 하고 실제로 시작하게 되지는 않았어요",
+  },
+  {
+    id: "priority_hard",
+    label: "할 일이 너무 많을 때 우선순위를 정하기 어려웠어요",
+  },
+  {
+    id: "plan_fell_apart",
+    label: "계획을 세워도 금방 흐트러졌어요",
+  },
+  {
+    id: "still_procrastinate",
+    label: "알림이 와도 결국 미루게 됐어요",
+  },
+  {
+    id: "hard_to_understand",
+    label: "내가 왜 자꾸 미루는지 파악하기 어려웠어요",
+  },
+  {
+    id: "replanning_is_annoying",
+    label: "상황이 바뀌면 계획을 다시 짜기 귀찮았어요",
+  },
+  {
+    id: "too_many_apps",
+    label: "앱을 여러 개 써야 해서 오히려 더 복잡했어요",
+  },
+  {
+    id: "not_personal",
+    label: "나한테 맞는 방식이라는 느낌이 없었어요",
+  },
+  {
+    id: "no_major_issue",
+    label: "지금 방법에 큰 불편은 없어요",
+  },
+  {
+    id: "other",
+    label: "기타",
+  },
+];
 
 const valueProps = [
   {
@@ -196,6 +380,297 @@ const faqs: Faq[] = [
   },
 ];
 
+function createInitialSurveyDraft(): SurveyDraft {
+  return {
+    currentStep: 1,
+    painMoment: "",
+    currentMethods: [],
+    currentMethodsOther: "",
+    biggestGapSelections: [],
+    biggestGapOther: "",
+  };
+}
+
+function getSurveyStepError(step: SurveyStep, draft: SurveyDraft) {
+  if (step === 1 && !draft.painMoment) {
+    return "최근 2주 동안 가장 힘들었던 순간을 하나 골라주세요.";
+  }
+
+  if (step === 2) {
+    if (draft.currentMethods.length === 0) {
+      return "지금 버티는 방법을 한 가지 이상 골라주세요.";
+    }
+
+    if (
+      draft.currentMethods.includes("other") &&
+      !draft.currentMethodsOther.trim()
+    ) {
+      return "기타를 선택하셨다면 내용을 함께 적어주세요.";
+    }
+  }
+
+  if (step === 3) {
+    if (draft.biggestGapSelections.length === 0) {
+      return "지금 방법에서 가장 아쉬운 점을 한 가지 이상 골라주세요.";
+    }
+
+    if (
+      draft.biggestGapSelections.includes("other") &&
+      !draft.biggestGapOther.trim()
+    ) {
+      return "기타를 선택하셨다면 내용을 함께 적어주세요.";
+    }
+  }
+
+  return null;
+}
+
+function parseSingleChoice<T extends string>(
+  options: { id: T; label: string }[],
+  value: unknown,
+) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const matchedOption = options.find(
+    (option) => option.id === value || option.label === value,
+  );
+  return matchedOption?.id ?? "";
+}
+
+function parseChoiceArray<T extends string>(
+  options: { id: T; label: string }[],
+  value: unknown,
+) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    const matchedOption = options.find((option) => option.id === item);
+    return matchedOption ? [matchedOption.id] : [];
+  });
+}
+
+function parseBiggestGapFallback(value: unknown): {
+  biggestGapSelections: BiggestGapOption[];
+  biggestGapOther: string;
+} {
+  if (typeof value !== "string" || !value.trim()) {
+    return {
+      biggestGapSelections: [] as BiggestGapOption[],
+      biggestGapOther: "",
+    };
+  }
+
+  const parts = value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const selections: BiggestGapOption[] = [];
+  let biggestGapOther = "";
+
+  for (const part of parts.length > 0 ? parts : [value.trim()]) {
+    if (part.startsWith("기타:")) {
+      selections.push("other");
+      biggestGapOther = part.slice(3).trim();
+      continue;
+    }
+
+    const matchedOption = biggestGapOptions.find(
+      (option) => option.id === part || option.label === part,
+    );
+
+    if (matchedOption) {
+      selections.push(matchedOption.id);
+    }
+  }
+
+  if (selections.length === 0 && !biggestGapOther) {
+    return {
+      biggestGapSelections: ["other"] as BiggestGapOption[],
+      biggestGapOther: value.trim(),
+    };
+  }
+
+  return {
+    biggestGapSelections: Array.from(new Set(selections)),
+    biggestGapOther,
+  };
+}
+
+function normalizeSurveyDraft(savedDraft: LegacySurveyDraft | null): SurveyDraft {
+  const emptyDraft = createInitialSurveyDraft();
+
+  if (!savedDraft) {
+    return emptyDraft;
+  }
+
+  const currentStep: SurveyStep =
+    savedDraft.currentStep === 2 || savedDraft.currentStep === 3
+      ? savedDraft.currentStep
+      : 1;
+
+  const currentMethods = parseChoiceArray(surveyOptions, savedDraft.currentMethods);
+  const parsedBiggestGap: {
+    biggestGapSelections: BiggestGapOption[];
+    biggestGapOther: string;
+  } =
+    parseChoiceArray(biggestGapOptions, savedDraft.biggestGapSelections).length > 0
+      ? {
+          biggestGapSelections: parseChoiceArray(
+            biggestGapOptions,
+            savedDraft.biggestGapSelections,
+          ),
+          biggestGapOther:
+            typeof savedDraft.biggestGapOther === "string"
+              ? savedDraft.biggestGapOther
+              : "",
+        }
+      : parseBiggestGapFallback(savedDraft.biggestGap ?? "");
+
+  const biggestGapSelections: BiggestGapOption[] =
+    parsedBiggestGap.biggestGapSelections.includes("no_major_issue")
+      ? ["no_major_issue"]
+      : parsedBiggestGap.biggestGapSelections.filter(
+          (item, index, items) => items.indexOf(item) === index,
+        );
+
+  return {
+    currentStep,
+    painMoment: parseSingleChoice(painMomentOptions, savedDraft.painMoment) as
+      | PainMomentOption
+      | "",
+    currentMethods,
+    currentMethodsOther:
+      currentMethods.includes("other") &&
+      typeof savedDraft.currentMethodsOther === "string"
+        ? savedDraft.currentMethodsOther
+        : "",
+    biggestGapSelections,
+    biggestGapOther: biggestGapSelections.includes("other")
+      ? parsedBiggestGap.biggestGapOther
+      : "",
+  };
+}
+
+function getChoiceLabel<T extends string>(
+  options: { id: T; label: string }[],
+  id: T,
+) {
+  return options.find((option) => option.id === id)?.label ?? "";
+}
+
+function serializeBiggestGap(draft: SurveyDraft) {
+  return draft.biggestGapSelections
+    .map((selection) => {
+      if (selection === "other") {
+        return `기타: ${draft.biggestGapOther.trim()}`;
+      }
+
+      return getChoiceLabel(biggestGapOptions, selection);
+    })
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function createDefaultSurveyState(): RestoredSurveyState {
+  const emptyDraft = createInitialSurveyDraft();
+
+  return {
+    contactMode: "phone",
+    contactValue: "",
+    registrationSubmitted: false,
+    submissionKey: null,
+    surveyDraft: emptyDraft,
+    surveyStage: null,
+    isSurveyComplete: false,
+    surveyStatusMessage: null,
+  };
+}
+
+function readStoredSurveyState(): RestoredSurveyState {
+  const defaultState = createDefaultSurveyState();
+
+  if (typeof window === "undefined") {
+    return defaultState;
+  }
+
+  const saved = window.localStorage.getItem(SURVEY_STORAGE_KEY);
+  if (!saved) {
+    return defaultState;
+  }
+
+  try {
+    const parsed = JSON.parse(saved) as SurveyStorage;
+    const restoredDraft = normalizeSurveyDraft(parsed.surveyDraft ?? null);
+    const restoredStep = restoredDraft.currentStep ?? 1;
+
+    return {
+      contactMode: parsed.contactMode ?? defaultState.contactMode,
+      contactValue: parsed.contactValue ?? defaultState.contactValue,
+      registrationSubmitted: Boolean(parsed.submissionKey),
+      submissionKey: parsed.submissionKey ?? null,
+      surveyDraft: restoredDraft,
+      surveyStage: parsed.surveyCompleted ? null : restoredStep,
+      isSurveyComplete: Boolean(parsed.surveyCompleted),
+      surveyStatusMessage: parsed.surveyCompleted
+        ? null
+        : "이전 설문 내용을 이어서 작성할 수 있어요.",
+    };
+  } catch {
+    window.localStorage.removeItem(SURVEY_STORAGE_KEY);
+    return defaultState;
+  }
+}
+
+async function saveRegistrationRequest(payload: RegisterRequestPayload) {
+  const res = await fetch("/api/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? "사전 등록 저장에 실패했습니다.");
+  }
+}
+
+function createSurveySavePayload(
+  submissionKey: string,
+  step: SurveyStep,
+  draft: SurveyDraft,
+  completed: boolean,
+): SurveyRequestPayload {
+  return {
+    submissionKey,
+    step,
+    painMoment: draft.painMoment
+      ? getChoiceLabel(painMomentOptions, draft.painMoment)
+      : "",
+    currentMethods: draft.currentMethods,
+    currentMethodsOther: draft.currentMethodsOther.trim(),
+    biggestGap: serializeBiggestGap(draft),
+    completed,
+  };
+}
+
+async function saveSurveyRequest(payload: SurveyRequestPayload) {
+  const res = await fetch("/api/survey", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? "답변 저장에 실패했습니다.");
+  }
+}
+
 function BrainIcon() {
   return (
     <svg viewBox="0 0 48 48" aria-hidden="true">
@@ -232,10 +707,27 @@ function ValueIcon({ type }: { type: string }) {
 export default function Home() {
   const [openFaq, setOpenFaq] = useState(-1);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [contactMode, setContactMode] = useState<"phone" | "email">("phone");
+  const [contactMode, setContactMode] = useState<ContactMode>("phone");
+  const [contactValue, setContactValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [registrationSubmitted, setRegistrationSubmitted] = useState(false);
+  const [submissionKey, setSubmissionKey] = useState<string | null>(null);
+  const [surveyDraft, setSurveyDraft] = useState<SurveyDraft>(
+    createInitialSurveyDraft,
+  );
+  const [surveyStage, setSurveyStage] = useState<SurveyStage>(null);
+  const [isSurveyComplete, setIsSurveyComplete] = useState(false);
+  const [registrationSaveCount, setRegistrationSaveCount] = useState(0);
+  const [surveySaveCount, setSurveySaveCount] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [surveyError, setSurveyError] = useState<string | null>(null);
+  const [surveyStatusMessage, setSurveyStatusMessage] = useState<string | null>(
+    null,
+  );
+  const [hasRestoredSurveyState, setHasRestoredSurveyState] = useState(false);
+  const surveySaveChainRef = useRef(Promise.resolve());
+  const isRegistrationSaving = registrationSaveCount > 0;
+  const isSurveySaving = surveySaveCount > 0;
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 12);
@@ -260,11 +752,320 @@ export default function Home() {
           }
         });
       },
-      { threshold: 0.3 }
+      { threshold: 0.3 },
     );
-    sections.forEach((s) => observer.observe(s));
+
+    sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const restoredState = readStoredSurveyState();
+    let isCancelled = false;
+
+    queueMicrotask(() => {
+      if (isCancelled) {
+        return;
+      }
+
+      if (restoredState.registrationSubmitted) {
+        setContactMode(restoredState.contactMode);
+        setContactValue(restoredState.contactValue);
+        setRegistrationSubmitted(restoredState.registrationSubmitted);
+        setSubmissionKey(restoredState.submissionKey);
+        setSurveyDraft(restoredState.surveyDraft);
+        setSurveyStage(restoredState.surveyStage);
+        setIsSurveyComplete(restoredState.isSurveyComplete);
+        setSurveyStatusMessage(restoredState.surveyStatusMessage);
+        track("survey_restored");
+      }
+
+      setHasRestoredSurveyState(true);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !hasRestoredSurveyState ||
+      !submissionKey
+    ) {
+      return;
+    }
+
+    const payload: SurveyStorage = {
+      contactMode,
+      contactValue,
+      submissionKey,
+      surveyDraft,
+      surveyCompleted: isSurveyComplete,
+    };
+
+    window.localStorage.setItem(SURVEY_STORAGE_KEY, JSON.stringify(payload));
+  }, [
+    contactMode,
+    contactValue,
+    hasRestoredSurveyState,
+    isSurveyComplete,
+    submissionKey,
+    surveyDraft,
+  ]);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || surveyStage === null) return;
+
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [surveyStage]);
+
+  function queueSurveySave(
+    payload: SurveyRequestPayload,
+    options?: {
+      silent?: boolean;
+    },
+  ) {
+    const silent = options?.silent ?? false;
+    setSurveySaveCount((count) => count + 1);
+
+    if (!silent) {
+      setSurveyStatusMessage("답변을 저장하고 있어요...");
+    }
+
+    const request = surveySaveChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          await saveSurveyRequest(payload);
+
+          if (!silent) {
+            setSurveyError(null);
+            setSurveyStatusMessage(
+              payload.completed ? null : "답변이 저장되었어요.",
+            );
+          }
+          return true;
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "답변 저장 중 오류가 발생했습니다.";
+
+          if (!silent) {
+            setSurveyError(message);
+            setSurveyStatusMessage("저장에 실패했어요. 잠시 후 다시 시도해 주세요.");
+          }
+
+          track("survey_save_error", { step: payload.step, error: message });
+          return false;
+        } finally {
+          setSurveySaveCount((count) => Math.max(0, count - 1));
+        }
+      });
+
+    surveySaveChainRef.current = request.then(() => undefined);
+    return request;
+  }
+
+  function updateSurveyDraft(updater: (draft: SurveyDraft) => SurveyDraft) {
+    setSurveyError(null);
+    setSurveyStatusMessage(
+      surveyStage === 3
+        ? "제출 버튼을 누르면 답변이 저장됩니다."
+        : "다음 버튼을 누르면 답변이 저장됩니다.",
+    );
+    setSurveyDraft((currentDraft) => updater(currentDraft));
+  }
+
+  function setStep(step: SurveyStep) {
+    setSurveyStage(step);
+    setSurveyDraft((currentDraft) => ({
+      ...currentDraft,
+      currentStep: step,
+    }));
+  }
+
+  async function handleRegistrationSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSurveyError(null);
+
+    const normalizedValue = normalizeContactValue(contactMode, contactValue);
+    if (!normalizedValue) {
+      setIsSubmitting(false);
+      setSubmitError(
+        contactMode === "phone"
+          ? "전화번호를 다시 확인해 주세요. 숫자만 입력해도 괜찮아요."
+          : "이메일 주소를 다시 확인해 주세요.",
+      );
+      return;
+    }
+
+    track("registration_submitted", { contact_mode: contactMode });
+
+    const nextSubmissionKey = crypto.randomUUID();
+    const nextDraft = createInitialSurveyDraft();
+
+    if (contactMode === "phone") {
+      setContactValue(normalizedValue);
+    } else {
+      setContactValue(normalizedValue.trim());
+    }
+
+    setRegistrationSubmitted(true);
+    setSubmissionKey(nextSubmissionKey);
+    setSurveyDraft(nextDraft);
+    setSurveyStage(1);
+    setIsSurveyComplete(false);
+    setSurveyStatusMessage("사전 등록을 저장하고 있어요.");
+
+    setRegistrationSaveCount((count) => count + 1);
+
+    try {
+      await saveRegistrationRequest({
+        contactMode,
+        value: normalizedValue,
+        submissionKey: nextSubmissionKey,
+      });
+
+      setSurveyStatusMessage("다음 버튼을 누르면 답변이 저장됩니다.");
+      track("registration_success", {
+        contact_mode: contactMode,
+        submission_key: nextSubmissionKey,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "알 수 없는 오류";
+      setSurveyError("등록 내용을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setSurveyStatusMessage("저장에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      track("registration_error", { contact_mode: contactMode, error: message });
+    } finally {
+      setRegistrationSaveCount((count) => Math.max(0, count - 1));
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSurveyNext() {
+    if (surveyStage === null || surveyStage === "done") return;
+    if (!submissionKey) return;
+
+    const validationError = getSurveyStepError(surveyStage, surveyDraft);
+    if (validationError) {
+      setSurveyError(validationError);
+      return;
+    }
+
+    const currentStep = surveyStage;
+
+    if (currentStep === 3) {
+      setSurveyError(null);
+      setIsSurveyComplete(true);
+      setSurveyStage("done");
+      setSurveyStatusMessage(null);
+      track("survey_completed", { submission_key: submissionKey });
+
+      void queueSurveySave(
+        createSurveySavePayload(submissionKey, 3, surveyDraft, true),
+        { silent: true },
+      );
+      return;
+    }
+
+    const nextStep = (currentStep + 1) as SurveyStep;
+    setSurveyError(null);
+    setStep(nextStep);
+    setSurveyStatusMessage(
+      nextStep === 3
+        ? "제출 버튼을 누르면 답변이 저장됩니다."
+        : "다음 버튼을 누르면 답변이 저장됩니다.",
+    );
+    track("survey_step_completed", {
+      step: currentStep,
+      next_step: nextStep,
+    });
+
+    void queueSurveySave(
+      createSurveySavePayload(submissionKey, nextStep, surveyDraft, false),
+      { silent: true },
+    );
+  }
+
+  function handleSurveyBack() {
+    if (surveyStage === 2 || surveyStage === 3) {
+      setStep((surveyStage - 1) as SurveyStep);
+    }
+  }
+
+  function handleSurveyDone() {
+    setSurveyStage(null);
+    setSurveyStatusMessage(null);
+  }
+
+  function handleSurveyClose() {
+    setSurveyError(null);
+    setSurveyStage(null);
+    setSurveyStatusMessage("이전 설문 내용을 이어서 작성할 수 있어요.");
+  }
+
+  function handleContactModeChange(nextMode: ContactMode) {
+    setContactMode(nextMode);
+    setContactValue("");
+    setSubmitError(null);
+    track("contact_mode_changed", { mode: nextMode });
+  }
+
+  function toggleMethod(method: SurveyMethod) {
+    updateSurveyDraft((draft) => {
+      const hasMethod = draft.currentMethods.includes(method);
+      const nextMethods = hasMethod
+        ? draft.currentMethods.filter((item) => item !== method)
+        : [...draft.currentMethods, method];
+
+      return {
+        ...draft,
+        currentMethods: nextMethods,
+        currentMethodsOther:
+          nextMethods.includes("other") ? draft.currentMethodsOther : "",
+      };
+    });
+  }
+
+  function toggleBiggestGap(option: BiggestGapOption) {
+    updateSurveyDraft((draft) => {
+      const hasOption = draft.biggestGapSelections.includes(option);
+      let biggestGapSelections: BiggestGapOption[];
+
+      if (option === "no_major_issue") {
+        biggestGapSelections = hasOption ? [] : ["no_major_issue"];
+      } else {
+        const withoutNoMajorIssue = draft.biggestGapSelections.filter(
+          (item) => item !== "no_major_issue",
+        );
+
+        biggestGapSelections = hasOption
+          ? withoutNoMajorIssue.filter((item) => item !== option)
+          : [...withoutNoMajorIssue, option];
+      }
+
+      return {
+        ...draft,
+        biggestGapSelections,
+        biggestGapOther: biggestGapSelections.includes("other")
+          ? draft.biggestGapOther
+          : "",
+      };
+    });
+  }
+
+  const isPhoneMode = contactMode === "phone";
+  const shouldShowSurveyModal = surveyStage !== null;
 
   return (
     <div className={styles.page}>
@@ -276,11 +1077,30 @@ export default function Home() {
             <span className={styles.brandText}>Untangle</span>
           </a>
           <nav className={styles.headerNav} aria-label="페이지 섹션">
-            <a href="#intro" onClick={() => track("nav_clicked", { destination: "intro" })}>기능 소개</a>
-            <a href="#features" onClick={() => track("nav_clicked", { destination: "features" })}>주요 기능</a>
-            <a href="#pre-register" onClick={() => track("nav_clicked", { destination: "stats" })}>ADHD 데이터</a>
+            <a
+              href="#intro"
+              onClick={() => track("nav_clicked", { destination: "intro" })}
+            >
+              기능 소개
+            </a>
+            <a
+              href="#features"
+              onClick={() => track("nav_clicked", { destination: "features" })}
+            >
+              주요 기능
+            </a>
+            <a
+              href="#pre-register"
+              onClick={() => track("nav_clicked", { destination: "stats" })}
+            >
+              ADHD 데이터
+            </a>
           </nav>
-          <a className={styles.topbarCta} href="#pre-register" onClick={() => track("cta_clicked", { location: "topbar" })}>
+          <a
+            className={styles.topbarCta}
+            href="#pre-register"
+            onClick={() => track("cta_clicked", { location: "topbar" })}
+          >
             사전 등록하기
           </a>
         </div>
@@ -297,8 +1117,8 @@ export default function Home() {
                 나를 이해하는 파트너
               </h1>
               <p className={styles.heroBody}>
-                하루를 정리하고, 내 뇌를 더 잘 이해하고, 삶을 바꾸도록
-                설계된 AI 코치와 함께 잠재력을 끌어올려 보세요.
+                하루를 정리하고, 내 뇌를 더 잘 이해하고, 삶을 바꾸도록 설계된
+                AI 코치와 함께 잠재력을 끌어올려 보세요.
               </p>
               <div className={styles.heroActions}>
                 <a
@@ -307,30 +1127,36 @@ export default function Home() {
                   onClick={() => track("cta_clicked", { location: "hero" })}
                 >
                   사전 등록하기
-                  <span className={styles.ctaArrow} aria-hidden="true">→</span>
+                  <span className={styles.ctaArrow} aria-hidden="true">
+                    →
+                  </span>
                 </a>
               </div>
             </div>
             <div className={styles.heroVisual}>
-                <Image
-                  src="/source-assets/hero-phone-cutout-v2.png"
-                  alt="Untangle mobile app preview"
-                  width={1029}
-                  height={1528}
-                  priority
-                />
+              <Image
+                src="/source-assets/hero-phone-cutout-v2.png"
+                alt="Untangle mobile app preview"
+                width={1029}
+                height={1528}
+                priority
+              />
             </div>
           </div>
         </section>
 
-        <section id="intro" className={styles.introSection} data-section="intro">
+        <section
+          id="intro"
+          className={styles.introSection}
+          data-section="intro"
+        >
           <div className={styles.containerNarrow}>
             <h2 className={styles.introTitle}>
               Untangle, ADHD를 위한 올인원 관리 파트너
             </h2>
             <p className={styles.introSubtitle}>
-              당신의 삶에 맞춰 반응하는 AI 지원으로
-              집중력을 높이고, 다시 앞으로 나아가게 합니다.
+              당신의 삶에 맞춰 반응하는 AI 지원으로 집중력을 높이고, 다시 앞으로
+              나아가게 합니다.
             </p>
             <div className={styles.valueGrid}>
               {valueProps.map((item) => (
@@ -346,7 +1172,11 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className={styles.featuresSection} data-section="features">
+        <section
+          id="features"
+          className={styles.featuresSection}
+          data-section="features"
+        >
           <div className={styles.container}>
             {features.map((feature) => {
               const title = feature.title.replace(
@@ -408,7 +1238,11 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="pre-register" className={styles.statsSection} data-section="stats">
+        <section
+          id="pre-register"
+          className={styles.statsSection}
+          data-section="stats"
+        >
           <div className={styles.container}>
             <h2 className={styles.statsTitle}>
               ADHD, 우리가 이 문제에 집중하는 이유
@@ -418,44 +1252,33 @@ export default function Home() {
                 <article key={stat.value} className={styles.statCard}>
                   <div className={styles.statValue}>{stat.value}</div>
                   <p>{stat.text}</p>
-                  <a href={stat.sourceHref} target="_blank" rel="noreferrer" onClick={() => track("stat_source_clicked", { source: stat.sourceLabel })}>
+                  <a
+                    href={stat.sourceHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() =>
+                      track("stat_source_clicked", {
+                        source: stat.sourceLabel,
+                      })
+                    }
+                  >
                     ({stat.sourceLabel})
                   </a>
                 </article>
               ))}
             </div>
-            <form
-              className={styles.preRegisterCard}
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const form = event.currentTarget;
-                const input = form.querySelector("input") as HTMLInputElement;
-                setIsSubmitting(true);
-                setSubmitError(null);
-                track("registration_submitted", { contact_mode: contactMode });
-                try {
-                  const res = await fetch("/api/register", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contactMode, value: input.value }),
-                  });
-                  if (!res.ok) throw new Error("서버 오류가 발생했습니다.");
-                  track("registration_success", { contact_mode: contactMode });
-                  setIsSuccess(true);
-                } catch (err) {
-                  const message = err instanceof Error ? err.message : "알 수 없는 오류";
-                  track("registration_error", { contact_mode: contactMode, error: message });
-                  setSubmitError("등록 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-            >
-              {isSuccess ? (
+            <form className={styles.preRegisterCard} onSubmit={handleRegistrationSubmit}>
+              {registrationSubmitted ? (
                 <div className={styles.preRegisterSuccess}>
-                  <p className={styles.preRegisterTitle}>사전 등록이 완료되었습니다!</p>
+                  <p className={styles.preRegisterTitle}>
+                    {isSurveyComplete
+                      ? "사전 등록과 설문이 모두 저장되었습니다."
+                      : "사전 등록이 완료되었습니다."}
+                  </p>
                   <p className={styles.preRegisterBody}>
-                    출시 소식을 가장 먼저 알려드릴게요. 기대해 주세요.
+                    {isSurveyComplete
+                      ? "남겨주신 답변을 바탕으로 Untangle을 더 세심하게 준비할게요."
+                      : "이어서 열리는 설문에서 다음 또는 제출 버튼을 누르면 답변이 저장됩니다."}
                   </p>
                 </div>
               ) : (
@@ -465,38 +1288,53 @@ export default function Home() {
                     연락받기 편한 방식 하나만 선택해 남겨주시면 출시 소식을 가장
                     먼저 알려드릴게요.
                   </p>
-                  <div className={styles.contactToggle} role="group" aria-label="연락 수단 선택">
+                  <div
+                    className={styles.contactToggle}
+                    role="group"
+                    aria-label="연락 수단 선택"
+                  >
                     <button
                       type="button"
                       className={`${styles.contactToggleButton} ${
-                        contactMode === "phone" ? styles.contactToggleButtonActive : ""
+                        isPhoneMode ? styles.contactToggleButtonActive : ""
                       }`}
-                      aria-pressed={contactMode === "phone"}
-                      onClick={() => { setContactMode("phone"); track("contact_mode_changed", { mode: "phone" }); }}
+                      aria-pressed={isPhoneMode}
+                      onClick={() => handleContactModeChange("phone")}
                     >
                       전화번호
                     </button>
                     <button
                       type="button"
                       className={`${styles.contactToggleButton} ${
-                        contactMode === "email" ? styles.contactToggleButtonActive : ""
+                        !isPhoneMode ? styles.contactToggleButtonActive : ""
                       }`}
-                      aria-pressed={contactMode === "email"}
-                      onClick={() => { setContactMode("email"); track("contact_mode_changed", { mode: "email" }); }}
+                      aria-pressed={!isPhoneMode}
+                      onClick={() => handleContactModeChange("email")}
                     >
                       이메일
                     </button>
                   </div>
                   <div className={styles.preRegisterFields}>
                     <label className={styles.preRegisterField}>
-                      <span>{contactMode === "phone" ? "전화번호" : "이메일 주소"}</span>
-                      {contactMode === "phone" ? (
+                      <span>{isPhoneMode ? "전화번호" : "이메일 주소"}</span>
+                      {isPhoneMode ? (
                         <input
                           type="tel"
                           name="phone"
-                          placeholder="010-1234-5678"
-                          pattern="[0-9]{3}-[0-9]{4}-[0-9]{4}"
+                          inputMode="numeric"
+                          placeholder="01012345678 또는 010-1234-5678"
                           required
+                          value={contactValue}
+                          onChange={(event) => {
+                            setContactValue(event.target.value);
+                            setSubmitError(null);
+                          }}
+                          onBlur={() => {
+                            const normalized = normalizePhoneNumber(contactValue);
+                            if (normalized) {
+                              setContactValue(normalized);
+                            }
+                          }}
                         />
                       ) : (
                         <input
@@ -504,13 +1342,18 @@ export default function Home() {
                           name="email"
                           placeholder="name@example.com"
                           required
+                          value={contactValue}
+                          onChange={(event) => {
+                            setContactValue(event.target.value);
+                            setSubmitError(null);
+                          }}
                         />
                       )}
                     </label>
                   </div>
-                  {submitError && (
+                  {submitError ? (
                     <p className={styles.preRegisterError}>{submitError}</p>
-                  )}
+                  ) : null}
                   <button
                     type="submit"
                     className={styles.preRegisterButton}
@@ -561,9 +1404,227 @@ export default function Home() {
             </div>
           </div>
         </section>
-
       </main>
 
+      {shouldShowSurveyModal ? (
+        <div className={styles.modalOverlay}>
+          <div
+            className={styles.modalCard}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="survey-modal-title"
+          >
+            {surveyStage === "done" ? (
+              <div className={styles.modalContent}>
+                <p className={styles.modalStep}>마무리</p>
+                <h3 id="survey-modal-title" className={styles.modalTitle}>
+                  감사합니다.
+                </h3>
+                <p className={styles.modalBody}>
+                  남겨주신 답변은 ADHD분들이 실제로 겪는 어려움을 이해하고,
+                  Untangle이 더 잘 챙겨줄 수 있는 방향으로 만드는 데
+                  사용됩니다.
+                </p>
+                <div className={styles.modalFooter}>
+                  <button
+                    type="button"
+                    className={styles.modalPrimaryButton}
+                    onClick={handleSurveyDone}
+                  >
+                    확인
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.modalContent}>
+                <div className={styles.modalHeader}>
+                  <p className={styles.modalStep}>{surveyStage}/3</p>
+                  <button
+                    type="button"
+                    className={styles.modalCloseButton}
+                    onClick={handleSurveyClose}
+                    disabled={isRegistrationSaving}
+                  >
+                    닫기
+                  </button>
+                </div>
+                {surveyStage === 1 ? (
+                  <>
+                    <h3 id="survey-modal-title" className={styles.modalTitle}>
+                      최근 2주 동안 가장 힘들었던 순간이 있었나요?
+                    </h3>
+                    <p className={styles.modalBody}>
+                      가장 가까운 답변 하나를 골라주세요.
+                    </p>
+                    <div className={styles.modalCheckboxGroup}>
+                      {painMomentOptions.map((option) => {
+                        const checked = surveyDraft.painMoment === option.id;
+
+                        return (
+                          <label
+                            key={option.id}
+                            className={`${styles.modalCheckbox} ${
+                              checked ? styles.modalCheckboxChecked : ""
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="pain-moment"
+                              checked={checked}
+                              onChange={() =>
+                                updateSurveyDraft((draft) => ({
+                                  ...draft,
+                                  painMoment: option.id,
+                                }))
+                              }
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
+
+                {surveyStage === 2 ? (
+                  <>
+                    <h3 id="survey-modal-title" className={styles.modalTitle}>
+                      지금은 어떻게 버티고 있나요?
+                    </h3>
+                    <p className={styles.modalBody}>
+                      해당되는 걸 모두 골라주세요.
+                    </p>
+                    <div className={styles.modalCheckboxGroup}>
+                      {surveyOptions.map((option) => {
+                        const checked = surveyDraft.currentMethods.includes(
+                          option.id,
+                        );
+
+                        return (
+                          <label
+                            key={option.id}
+                            className={`${styles.modalCheckbox} ${
+                              checked ? styles.modalCheckboxChecked : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleMethod(option.id)}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {surveyDraft.currentMethods.includes("other") ? (
+                      <label className={styles.modalField}>
+                        <span className={styles.modalLabel}>기타 내용</span>
+                        <input
+                          className={styles.modalInput}
+                          type="text"
+                          value={surveyDraft.currentMethodsOther}
+                          onChange={(event) =>
+                            updateSurveyDraft((draft) => ({
+                              ...draft,
+                              currentMethodsOther: event.target.value,
+                            }))
+                          }
+                          placeholder="직접 적어주세요"
+                        />
+                      </label>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {surveyStage === 3 ? (
+                  <>
+                    <h3 id="survey-modal-title" className={styles.modalTitle}>
+                      지금 방법에서 가장 아쉬운 점은 뭔가요?
+                    </h3>
+                    <p className={styles.modalBody}>
+                      해당되는 걸 모두 골라주세요.
+                    </p>
+                    <div className={styles.modalCheckboxGroup}>
+                      {biggestGapOptions.map((option) => {
+                        const checked = surveyDraft.biggestGapSelections.includes(
+                          option.id,
+                        );
+
+                        return (
+                          <label
+                            key={option.id}
+                            className={`${styles.modalCheckbox} ${
+                              checked ? styles.modalCheckboxChecked : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleBiggestGap(option.id)}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {surveyDraft.biggestGapSelections.includes("other") ? (
+                      <label className={styles.modalField}>
+                        <span className={styles.modalLabel}>기타 내용</span>
+                        <input
+                          className={styles.modalInput}
+                          type="text"
+                          value={surveyDraft.biggestGapOther}
+                          onChange={(event) =>
+                            updateSurveyDraft((draft) => ({
+                              ...draft,
+                              biggestGapOther: event.target.value,
+                            }))
+                          }
+                          placeholder="직접 적어주세요"
+                        />
+                      </label>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {surveyError ? (
+                  <p className={styles.modalError}>{surveyError}</p>
+                ) : null}
+                <p className={styles.modalStatus}>
+                  {isRegistrationSaving
+                    ? "사전 등록을 저장하고 있어요..."
+                    : isSurveySaving
+                    ? "답변을 저장하고 있어요..."
+                    : surveyStatusMessage}
+                </p>
+                <div className={styles.modalFooter}>
+                  {surveyStage === 2 || surveyStage === 3 ? (
+                    <button
+                      type="button"
+                      className={styles.modalSecondaryButton}
+                      onClick={handleSurveyBack}
+                      disabled={isRegistrationSaving}
+                    >
+                      이전
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    type="button"
+                    className={styles.modalPrimaryButton}
+                    onClick={() => void handleSurveyNext()}
+                    disabled={isRegistrationSaving}
+                  >
+                    {surveyStage === 3 ? "제출하기" : "다음"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
