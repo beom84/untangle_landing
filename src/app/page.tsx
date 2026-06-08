@@ -518,6 +518,9 @@ export default function Home() {
                   >
                     {isSubmitting ? "등록 중..." : "사전 등록하기"}
                   </button>
+                  <p className={styles.preRegisterConsent}>
+                    등록 시 이용 약관 및 개인정보 처리방침에 동의하게 됩니다.
+                  </p>
                 </>
               )}
             </form>
