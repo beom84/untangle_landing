@@ -229,9 +229,12 @@ function ValueIcon({ type }: { type: string }) {
 }
 
 export default function Home() {
-  const [openFaq, setOpenFaq] = useState(0);
+  const [openFaq, setOpenFaq] = useState(-1);
   const [isScrolled, setIsScrolled] = useState(false);
   const [contactMode, setContactMode] = useState<"phone" | "email">("phone");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 12);
@@ -271,10 +274,11 @@ export default function Home() {
               </p>
               <div className={styles.heroActions}>
                 <a
-                  className={styles.ctaSecondary}
+                  className={styles.ctaPrimary}
                   href="#pre-register"
                 >
                   사전 등록하기
+                  <span className={styles.ctaArrow} aria-hidden="true">→</span>
                 </a>
               </div>
             </div>
@@ -393,56 +397,96 @@ export default function Home() {
             </div>
             <form
               className={styles.preRegisterCard}
-              onSubmit={(event) => event.preventDefault()}
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const input = form.querySelector("input") as HTMLInputElement;
+                setIsSubmitting(true);
+                setSubmitError(null);
+                try {
+                  const res = await fetch("/api/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contactMode, value: input.value }),
+                  });
+                  if (!res.ok) throw new Error("서버 오류가 발생했습니다.");
+                  setIsSuccess(true);
+                } catch {
+                  setSubmitError("등록 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
             >
-              <p className={styles.preRegisterTitle}>사전 등록하기</p>
-              <p className={styles.preRegisterBody}>
-                연락받기 편한 방식 하나만 선택해 남겨주시면 출시 소식을 가장
-                먼저 알려드릴게요.
-              </p>
-              <div className={styles.contactToggle} role="tablist" aria-label="연락 수단 선택">
-                <button
-                  type="button"
-                  className={`${styles.contactToggleButton} ${
-                    contactMode === "phone" ? styles.contactToggleButtonActive : ""
-                  }`}
-                  aria-pressed={contactMode === "phone"}
-                  onClick={() => setContactMode("phone")}
-                >
-                  전화번호
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.contactToggleButton} ${
-                    contactMode === "email" ? styles.contactToggleButtonActive : ""
-                  }`}
-                  aria-pressed={contactMode === "email"}
-                  onClick={() => setContactMode("email")}
-                >
-                  이메일
-                </button>
-              </div>
-              <div className={styles.preRegisterFields}>
-                <label className={styles.preRegisterField}>
-                  <span>{contactMode === "phone" ? "전화번호" : "이메일 주소"}</span>
-                  {contactMode === "phone" ? (
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="010-1234-5678"
-                    />
-                  ) : (
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="name@example.com"
-                    />
+              {isSuccess ? (
+                <div className={styles.preRegisterSuccess}>
+                  <p className={styles.preRegisterTitle}>사전 등록이 완료되었습니다!</p>
+                  <p className={styles.preRegisterBody}>
+                    출시 소식을 가장 먼저 알려드릴게요. 기대해 주세요.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className={styles.preRegisterTitle}>사전 등록하기</p>
+                  <p className={styles.preRegisterBody}>
+                    연락받기 편한 방식 하나만 선택해 남겨주시면 출시 소식을 가장
+                    먼저 알려드릴게요.
+                  </p>
+                  <div className={styles.contactToggle} role="group" aria-label="연락 수단 선택">
+                    <button
+                      type="button"
+                      className={`${styles.contactToggleButton} ${
+                        contactMode === "phone" ? styles.contactToggleButtonActive : ""
+                      }`}
+                      aria-pressed={contactMode === "phone"}
+                      onClick={() => setContactMode("phone")}
+                    >
+                      전화번호
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.contactToggleButton} ${
+                        contactMode === "email" ? styles.contactToggleButtonActive : ""
+                      }`}
+                      aria-pressed={contactMode === "email"}
+                      onClick={() => setContactMode("email")}
+                    >
+                      이메일
+                    </button>
+                  </div>
+                  <div className={styles.preRegisterFields}>
+                    <label className={styles.preRegisterField}>
+                      <span>{contactMode === "phone" ? "전화번호" : "이메일 주소"}</span>
+                      {contactMode === "phone" ? (
+                        <input
+                          type="tel"
+                          name="phone"
+                          placeholder="010-1234-5678"
+                          pattern="[0-9]{3}-[0-9]{4}-[0-9]{4}"
+                          required
+                        />
+                      ) : (
+                        <input
+                          type="email"
+                          name="email"
+                          placeholder="name@example.com"
+                          required
+                        />
+                      )}
+                    </label>
+                  </div>
+                  {submitError && (
+                    <p className={styles.preRegisterError}>{submitError}</p>
                   )}
-                </label>
-              </div>
-              <button type="submit" className={styles.preRegisterButton}>
-                사전 등록하기
-              </button>
+                  <button
+                    type="submit"
+                    className={styles.preRegisterButton}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "등록 중..." : "사전 등록하기"}
+                  </button>
+                </>
+              )}
             </form>
           </div>
         </section>

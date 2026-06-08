@@ -360,8 +360,8 @@
 
 .featureVisualDark {
   background:
-    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 24%), transparent 48%),
-    linear-gradient(140deg, #4c8d9b 0%, #64b760 100%);
+    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 18%), transparent 48%),
+    linear-gradient(140deg, #1a3a4a 0%, #2a4a3a 100%);
 }
 
 .statsSection {
@@ -480,6 +480,22 @@
   cursor: pointer;
   margin-top: 14px;
   align-self: flex-end;
+}
+
+.preRegisterButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.preRegisterError {
+  margin-top: 8px;
+  color: #ffcaca;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.preRegisterSuccess {
+  padding: 16px 0;
 }
 
 .statsGrid {
