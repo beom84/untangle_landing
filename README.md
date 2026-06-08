@@ -78,3 +78,4 @@ Use [scripts/google-apps-script/Code.gs](/Users/beom/Documents/untangle_landing/
 - Phone numbers are normalized before saving.
 - Survey progress is auto-saved during typing and on each step transition.
 - The browser also keeps a local draft so users can resume on the same device.
+# untangle_landing_v2
