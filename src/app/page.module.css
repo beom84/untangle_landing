@@ -337,10 +337,10 @@
 .featureVisual {
   width: min(100%, 520px);
   min-height: 560px;
-  padding: 26px;
+  padding: 26px 26px 0;
   border-radius: 24px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background:
     radial-gradient(circle at 50% 0%, rgb(255 255 255 / 24%), transparent 48%),
@@ -353,12 +353,15 @@
   max-width: 420px;
   height: auto;
   display: block;
-  border-radius: 22px;
-  box-shadow: 0 20px 40px rgb(0 0 0 / 16%);
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 22px 42px rgb(0 0 0 / 16%));
 }
 
 .featureVisualDark {
-  background: #080808;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 24%), transparent 48%),
+    linear-gradient(140deg, #4c8d9b 0%, #64b760 100%);
 }
 
 .statsSection {
@@ -832,13 +835,13 @@
 
   .featureVisual {
     min-height: 360px;
-    padding: 18px;
+    padding: 18px 18px 0;
     border-radius: 18px;
   }
 
   .featureVisual img {
     max-width: 280px;
-    border-radius: 18px;
+    filter: drop-shadow(0 18px 30px rgb(0 0 0 / 14%));
   }
 
   .statsSection {

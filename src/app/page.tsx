@@ -62,10 +62,10 @@ const features: Feature[] = [
       "하루 동안 바뀌는 상황에 맞게 유연하게 조정합니다",
     ],
     image: {
-      src: "/source-assets/feature-1.jpeg",
+      src: "/source-assets/feature-1-cutout.png",
       alt: "Untangle task planner screenshot",
-      width: 753,
-      height: 1024,
+      width: 535,
+      height: 728,
     },
   },
   {
@@ -80,10 +80,10 @@ const features: Feature[] = [
       "필요한 순간마다 바로 실행할 수 있는 가이드를 제공합니다",
     ],
     image: {
-      src: "/source-assets/feature-2.jpeg",
+      src: "/source-assets/feature-2-cutout.png",
       alt: "Untangle coaching support screenshot",
-      width: 753,
-      height: 1024,
+      width: 535,
+      height: 728,
     },
     reverse: true,
   },
@@ -98,10 +98,10 @@ const features: Feature[] = [
       "그날의 흐름에 맞는 실행 전략을 바로 제안합니다",
     ],
     image: {
-      src: "/source-assets/feature-3.jpeg",
+      src: "/source-assets/feature-3-cutout.png",
       alt: "Untangle proactive messages screenshot",
-      width: 766,
-      height: 1024,
+      width: 540,
+      height: 722,
     },
     visualTone: "dark",
   },
@@ -279,13 +279,13 @@ export default function Home() {
               </div>
             </div>
             <div className={styles.heroVisual}>
-              <Image
-                src="/source-assets/hero-phone-cutout.png"
-                alt="Untangle mobile app preview"
-                width={414}
-                height={824}
-                priority
-              />
+                <Image
+                  src="/source-assets/hero-phone-cutout-v2.png"
+                  alt="Untangle mobile app preview"
+                  width={495}
+                  height={977}
+                  priority
+                />
             </div>
           </div>
         </section>
