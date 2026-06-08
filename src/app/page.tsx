@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
+import { initAmplitude, track } from "@/lib/amplitude";
 
 type Feature = {
   eyebrow: string;
@@ -229,15 +230,40 @@ function ValueIcon({ type }: { type: string }) {
 }
 
 export default function Home() {
-  const [openFaq, setOpenFaq] = useState(0);
+  const [openFaq, setOpenFaq] = useState(-1);
   const [isScrolled, setIsScrolled] = useState(false);
   const [contactMode, setContactMode] = useState<"phone" | "email">("phone");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 12);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    initAmplitude();
+    track("page_viewed");
+
+    const sections = document.querySelectorAll("[data-section]");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            track("section_viewed", {
+              section: entry.target.getAttribute("data-section"),
+            });
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -249,14 +275,19 @@ export default function Home() {
           <a className={styles.brand} href="#top" aria-label="Untangle home">
             <span className={styles.brandText}>Untangle</span>
           </a>
-          <a className={styles.topbarCta} href="#pre-register">
+          <nav className={styles.headerNav} aria-label="페이지 섹션">
+            <a href="#intro" onClick={() => track("nav_clicked", { destination: "intro" })}>기능 소개</a>
+            <a href="#features" onClick={() => track("nav_clicked", { destination: "features" })}>주요 기능</a>
+            <a href="#pre-register" onClick={() => track("nav_clicked", { destination: "stats" })}>ADHD 데이터</a>
+          </nav>
+          <a className={styles.topbarCta} href="#pre-register" onClick={() => track("cta_clicked", { location: "topbar" })}>
             사전 등록하기
           </a>
         </div>
       </header>
 
       <main id="top">
-        <section className={styles.heroShell}>
+        <section className={styles.heroShell} data-section="hero">
           <div className={styles.hero}>
             <div className={styles.heroContent}>
               <p className={styles.heroEyebrow}>ADHD를 위한 Untangle</p>
@@ -271,10 +302,12 @@ export default function Home() {
               </p>
               <div className={styles.heroActions}>
                 <a
-                  className={styles.ctaSecondary}
+                  className={styles.ctaPrimary}
                   href="#pre-register"
+                  onClick={() => track("cta_clicked", { location: "hero" })}
                 >
                   사전 등록하기
+                  <span className={styles.ctaArrow} aria-hidden="true">→</span>
                 </a>
               </div>
             </div>
@@ -290,7 +323,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.introSection}>
+        <section id="intro" className={styles.introSection} data-section="intro">
           <div className={styles.containerNarrow}>
             <h2 className={styles.introTitle}>
               Untangle, ADHD를 위한 올인원 관리 파트너
@@ -313,7 +346,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.featuresSection}>
+        <section id="features" className={styles.featuresSection} data-section="features">
           <div className={styles.container}>
             {features.map((feature) => {
               const title = feature.title.replace(
@@ -375,7 +408,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="pre-register" className={styles.statsSection}>
+        <section id="pre-register" className={styles.statsSection} data-section="stats">
           <div className={styles.container}>
             <h2 className={styles.statsTitle}>
               ADHD, 우리가 이 문제에 집중하는 이유
@@ -385,7 +418,7 @@ export default function Home() {
                 <article key={stat.value} className={styles.statCard}>
                   <div className={styles.statValue}>{stat.value}</div>
                   <p>{stat.text}</p>
-                  <a href={stat.sourceHref} target="_blank" rel="noreferrer">
+                  <a href={stat.sourceHref} target="_blank" rel="noreferrer" onClick={() => track("stat_source_clicked", { source: stat.sourceLabel })}>
                     ({stat.sourceLabel})
                   </a>
                 </article>
@@ -393,56 +426,100 @@ export default function Home() {
             </div>
             <form
               className={styles.preRegisterCard}
-              onSubmit={(event) => event.preventDefault()}
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const input = form.querySelector("input") as HTMLInputElement;
+                setIsSubmitting(true);
+                setSubmitError(null);
+                track("registration_submitted", { contact_mode: contactMode });
+                try {
+                  const res = await fetch("/api/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contactMode, value: input.value }),
+                  });
+                  if (!res.ok) throw new Error("서버 오류가 발생했습니다.");
+                  track("registration_success", { contact_mode: contactMode });
+                  setIsSuccess(true);
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : "알 수 없는 오류";
+                  track("registration_error", { contact_mode: contactMode, error: message });
+                  setSubmitError("등록 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
             >
-              <p className={styles.preRegisterTitle}>사전 등록하기</p>
-              <p className={styles.preRegisterBody}>
-                연락받기 편한 방식 하나만 선택해 남겨주시면 출시 소식을 가장
-                먼저 알려드릴게요.
-              </p>
-              <div className={styles.contactToggle} role="tablist" aria-label="연락 수단 선택">
-                <button
-                  type="button"
-                  className={`${styles.contactToggleButton} ${
-                    contactMode === "phone" ? styles.contactToggleButtonActive : ""
-                  }`}
-                  aria-pressed={contactMode === "phone"}
-                  onClick={() => setContactMode("phone")}
-                >
-                  전화번호
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.contactToggleButton} ${
-                    contactMode === "email" ? styles.contactToggleButtonActive : ""
-                  }`}
-                  aria-pressed={contactMode === "email"}
-                  onClick={() => setContactMode("email")}
-                >
-                  이메일
-                </button>
-              </div>
-              <div className={styles.preRegisterFields}>
-                <label className={styles.preRegisterField}>
-                  <span>{contactMode === "phone" ? "전화번호" : "이메일 주소"}</span>
-                  {contactMode === "phone" ? (
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="010-1234-5678"
-                    />
-                  ) : (
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="name@example.com"
-                    />
+              {isSuccess ? (
+                <div className={styles.preRegisterSuccess}>
+                  <p className={styles.preRegisterTitle}>사전 등록이 완료되었습니다!</p>
+                  <p className={styles.preRegisterBody}>
+                    출시 소식을 가장 먼저 알려드릴게요. 기대해 주세요.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className={styles.preRegisterTitle}>사전 등록하기</p>
+                  <p className={styles.preRegisterBody}>
+                    연락받기 편한 방식 하나만 선택해 남겨주시면 출시 소식을 가장
+                    먼저 알려드릴게요.
+                  </p>
+                  <div className={styles.contactToggle} role="group" aria-label="연락 수단 선택">
+                    <button
+                      type="button"
+                      className={`${styles.contactToggleButton} ${
+                        contactMode === "phone" ? styles.contactToggleButtonActive : ""
+                      }`}
+                      aria-pressed={contactMode === "phone"}
+                      onClick={() => { setContactMode("phone"); track("contact_mode_changed", { mode: "phone" }); }}
+                    >
+                      전화번호
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.contactToggleButton} ${
+                        contactMode === "email" ? styles.contactToggleButtonActive : ""
+                      }`}
+                      aria-pressed={contactMode === "email"}
+                      onClick={() => { setContactMode("email"); track("contact_mode_changed", { mode: "email" }); }}
+                    >
+                      이메일
+                    </button>
+                  </div>
+                  <div className={styles.preRegisterFields}>
+                    <label className={styles.preRegisterField}>
+                      <span>{contactMode === "phone" ? "전화번호" : "이메일 주소"}</span>
+                      {contactMode === "phone" ? (
+                        <input
+                          type="tel"
+                          name="phone"
+                          placeholder="010-1234-5678"
+                          pattern="[0-9]{3}-[0-9]{4}-[0-9]{4}"
+                          required
+                        />
+                      ) : (
+                        <input
+                          type="email"
+                          name="email"
+                          placeholder="name@example.com"
+                          required
+                        />
+                      )}
+                    </label>
+                  </div>
+                  {submitError && (
+                    <p className={styles.preRegisterError}>{submitError}</p>
                   )}
-                </label>
-              </div>
-              <button type="submit" className={styles.preRegisterButton}>
-                사전 등록하기
-              </button>
+                  <button
+                    type="submit"
+                    className={styles.preRegisterButton}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "등록 중..." : "사전 등록하기"}
+                  </button>
+                </>
+              )}
             </form>
           </div>
         </section>
@@ -484,21 +561,6 @@ export default function Home() {
 
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.footerTop}>
-          <p>
-            Untangle is your personal AI Coach and ADHD Assistant helping you
-            learn, grow, and get more done.
-          </p>
-        </div>
-        <div className={styles.footerBottom}>
-          <p>© Rethinkifi, LLC</p>
-          <p>
-            <a href="https://helloari.ai/privacy/">Privacy</a> |{" "}
-            <a href="https://helloari.ai/terms/">Terms of Use</a>
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
