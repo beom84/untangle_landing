@@ -4,6 +4,7 @@ let initialized = false;
 
 export function initAmplitude() {
   const apiKey = process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY;
+  console.log("[Amplitude] apiKey:", apiKey ?? "undefined");
   if (!apiKey || initialized || typeof window === "undefined") return;
   amplitude.init(apiKey, { autocapture: false });
   initialized = true;
