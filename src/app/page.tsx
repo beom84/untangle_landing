@@ -144,25 +144,13 @@ const painMomentOptions: { id: PainMomentOption; label: string }[] = [
     label: "이것저것 하다가 중요한 일을 놓쳤어요",
   },
   {
-    id: "lost_focus",
-    label: "집중하려고 했지만 금방 다른 생각이나 행동으로 넘어갔어요",
-  },
-  {
     id: "plan_fell_apart",
     label: "계획은 세웠지만 하루가 지나면 흐트러졌어요",
   },
   {
     id: "froze_from_volume",
     label: "해야 할 일이 너무 많아 보여서 그냥 멈춰 있었어요",
-  },
-  {
-    id: "forgot_schedule",
-    label: "약속, 일정, 제출일을 깜빡한 적이 있어요",
-  },
-  {
-    id: "none",
-    label: "해당되는 게 없어요",
-  },
+  }
 ];
 
 const surveyOptions: { id: SurveyMethod; label: string }[] = [
@@ -188,28 +176,12 @@ const biggestGapOptions: { id: BiggestGapOption; label: string }[] = [
     label: "계획을 세워도 금방 흐트러졌어요",
   },
   {
-    id: "still_procrastinate",
-    label: "알림이 와도 결국 미루게 됐어요",
-  },
-  {
     id: "hard_to_understand",
     label: "내가 왜 자꾸 미루는지 파악하기 어려웠어요",
   },
   {
     id: "replanning_is_annoying",
     label: "상황이 바뀌면 계획을 다시 짜기 귀찮았어요",
-  },
-  {
-    id: "too_many_apps",
-    label: "앱을 여러 개 써야 해서 오히려 더 복잡했어요",
-  },
-  {
-    id: "not_personal",
-    label: "나한테 맞는 방식이라는 느낌이 없었어요",
-  },
-  {
-    id: "no_major_issue",
-    label: "지금 방법에 큰 불편은 없어요",
   },
   {
     id: "other",
