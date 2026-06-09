@@ -36,6 +36,14 @@ type Faq = {
   answer: string[];
 };
 
+type ThoughtCategory =
+  | "work"
+  | "study"
+  | "life_management"
+  | "relationships"
+  | "self_improvement"
+  | "other";
+
 type SurveyMethod =
   | "endure"
   | "notes"
@@ -67,12 +75,14 @@ type BiggestGapOption =
   | "no_major_issue"
   | "other";
 
-type SurveyStep = 1 | 2 | 3;
+type SurveyStep = 1 | 2 | 3 | 4;
 
 type SurveyStage = SurveyStep | "done" | null;
 
 type SurveyDraft = {
   currentStep: SurveyStep;
+  thoughtCategory: ThoughtCategory | "";
+  thoughtCategoryOther: string;
   painMoment: PainMomentOption | "";
   currentMethods: SurveyMethod[];
   currentMethodsOther: string;
@@ -90,6 +100,8 @@ type SurveyStorage = {
 
 type LegacySurveyDraft = Partial<SurveyDraft> & {
   currentStep?: number;
+  thoughtCategory?: string;
+  thoughtCategoryOther?: string;
   painMoment?: string;
   currentMethods?: SurveyMethod[];
   currentMethodsOther?: string;
@@ -108,6 +120,8 @@ type RegisterRequestPayload = {
 type SurveyRequestPayload = {
   submissionKey: string;
   step: SurveyStep;
+  thoughtCategory: string;
+  thoughtCategoryOther: string;
   painMoment: string;
   currentMethods: SurveyMethod[];
   currentMethodsOther: string;
@@ -127,6 +141,15 @@ type RestoredSurveyState = {
 };
 
 const SURVEY_STORAGE_KEY = "untangle-survey-progress";
+
+const thoughtCategoryOptions: { id: ThoughtCategory; label: string }[] = [
+  { id: "work", label: "일" },
+  { id: "study", label: "공부" },
+  { id: "life_management", label: "생활관리" },
+  { id: "relationships", label: "인간관계" },
+  { id: "self_improvement", label: "자기계발" },
+  { id: "other", label: "기타" },
+];
 
 const painMomentOptions: { id: PainMomentOption; label: string }[] = [
   {
@@ -357,6 +380,8 @@ const faqs: Faq[] = [
 function createInitialSurveyDraft(): SurveyDraft {
   return {
     currentStep: 1,
+    thoughtCategory: "",
+    thoughtCategoryOther: "",
     painMoment: "",
     currentMethods: [],
     currentMethodsOther: "",
@@ -366,11 +391,24 @@ function createInitialSurveyDraft(): SurveyDraft {
 }
 
 function getSurveyStepError(step: SurveyStep, draft: SurveyDraft) {
-  if (step === 1 && !draft.painMoment) {
+  if (step === 1) {
+    if (!draft.thoughtCategory) {
+      return "가장 생각을 정리하기 어려운 카테고리를 골라주세요.";
+    }
+
+    if (
+      draft.thoughtCategory === "other" &&
+      !draft.thoughtCategoryOther.trim()
+    ) {
+      return "기타를 선택하셨다면 내용을 함께 적어주세요.";
+    }
+  }
+
+  if (step === 2 && !draft.painMoment) {
     return "최근 2주 동안 가장 힘들었던 순간을 하나 골라주세요.";
   }
 
-  if (step === 2) {
+  if (step === 3) {
     if (draft.currentMethods.length === 0) {
       return "지금 버티는 방법을 한 가지 이상 골라주세요.";
     }
@@ -383,7 +421,7 @@ function getSurveyStepError(step: SurveyStep, draft: SurveyDraft) {
     }
   }
 
-  if (step === 3) {
+  if (step === 4) {
     if (draft.biggestGapSelections.length === 0) {
       return "지금 방법에서 가장 아쉬운 점을 한 가지 이상 골라주세요.";
     }
@@ -482,8 +520,16 @@ function normalizeSurveyDraft(savedDraft: LegacySurveyDraft | null): SurveyDraft
     return emptyDraft;
   }
 
+  const thoughtCategory = parseSingleChoice(
+    thoughtCategoryOptions,
+    savedDraft.thoughtCategory,
+  ) as ThoughtCategory | "";
+
   const currentStep: SurveyStep =
-    savedDraft.currentStep === 2 || savedDraft.currentStep === 3
+    thoughtCategory &&
+    (savedDraft.currentStep === 2 ||
+      savedDraft.currentStep === 3 ||
+      savedDraft.currentStep === 4)
       ? savedDraft.currentStep
       : 1;
 
@@ -514,6 +560,12 @@ function normalizeSurveyDraft(savedDraft: LegacySurveyDraft | null): SurveyDraft
 
   return {
     currentStep,
+    thoughtCategory,
+    thoughtCategoryOther:
+      thoughtCategory === "other" &&
+      typeof savedDraft.thoughtCategoryOther === "string"
+        ? savedDraft.thoughtCategoryOther
+        : "",
     painMoment: parseSingleChoice(painMomentOptions, savedDraft.painMoment) as
       | PainMomentOption
       | "",
@@ -548,6 +600,34 @@ function serializeBiggestGap(draft: SurveyDraft) {
     })
     .filter(Boolean)
     .join(" | ");
+}
+
+function getThoughtCategoryStepEventProps(draft: SurveyDraft) {
+  if (!draft.thoughtCategory) {
+    return {};
+  }
+
+  return {
+    thought_category: draft.thoughtCategory,
+  };
+}
+
+function getThoughtCategoryCompletedEventProps(draft: SurveyDraft) {
+  if (!draft.thoughtCategory) {
+    return {};
+  }
+
+  const thoughtCategoryOther =
+    draft.thoughtCategory === "other"
+      ? draft.thoughtCategoryOther.trim()
+      : "";
+
+  return {
+    thought_category: draft.thoughtCategory,
+    ...(thoughtCategoryOther
+      ? { thought_category_other: thoughtCategoryOther }
+      : {}),
+  };
 }
 
 function createDefaultSurveyState(): RestoredSurveyState {
@@ -622,6 +702,13 @@ function createSurveySavePayload(
   return {
     submissionKey,
     step,
+    thoughtCategory: draft.thoughtCategory
+      ? getChoiceLabel(thoughtCategoryOptions, draft.thoughtCategory)
+      : "",
+    thoughtCategoryOther:
+      draft.thoughtCategory === "other"
+        ? draft.thoughtCategoryOther.trim()
+        : "",
     painMoment: draft.painMoment
       ? getChoiceLabel(painMomentOptions, draft.painMoment)
       : "",
@@ -850,7 +937,7 @@ export default function Home() {
   function updateSurveyDraft(updater: (draft: SurveyDraft) => SurveyDraft) {
     setSurveyError(null);
     setSurveyStatusMessage(
-      surveyStage === 3
+      surveyStage === 4
         ? "제출 버튼을 누르면 답변이 저장됩니다."
         : "다음 버튼을 누르면 답변이 저장됩니다.",
     );
@@ -940,15 +1027,18 @@ export default function Home() {
 
     const currentStep = surveyStage;
 
-    if (currentStep === 3) {
+    if (currentStep === 4) {
       setSurveyError(null);
       setIsSurveyComplete(true);
       setSurveyStage("done");
       setSurveyStatusMessage(null);
-      track("survey_completed", { submission_key: submissionKey });
+      track("survey_completed", {
+        submission_key: submissionKey,
+        ...getThoughtCategoryCompletedEventProps(surveyDraft),
+      });
 
       void queueSurveySave(
-        createSurveySavePayload(submissionKey, 3, surveyDraft, true),
+        createSurveySavePayload(submissionKey, 4, surveyDraft, true),
         { silent: true },
       );
       return;
@@ -958,13 +1048,14 @@ export default function Home() {
     setSurveyError(null);
     setStep(nextStep);
     setSurveyStatusMessage(
-      nextStep === 3
+      nextStep === 4
         ? "제출 버튼을 누르면 답변이 저장됩니다."
         : "다음 버튼을 누르면 답변이 저장됩니다.",
     );
     track("survey_step_completed", {
       step: currentStep,
       next_step: nextStep,
+      ...getThoughtCategoryStepEventProps(surveyDraft),
     });
 
     void queueSurveySave(
@@ -974,7 +1065,7 @@ export default function Home() {
   }
 
   function handleSurveyBack() {
-    if (surveyStage === 2 || surveyStage === 3) {
+    if (surveyStage === 2 || surveyStage === 3 || surveyStage === 4) {
       setStep((surveyStage - 1) as SurveyStep);
     }
   }
@@ -1411,7 +1502,7 @@ export default function Home() {
             ) : (
               <div className={styles.modalContent}>
                 <div className={styles.modalHeader}>
-                  <p className={styles.modalStep}>{surveyStage}/3</p>
+                  <p className={styles.modalStep}>{surveyStage}/4</p>
                   <button
                     type="button"
                     className={styles.modalCloseButton}
@@ -1422,6 +1513,65 @@ export default function Home() {
                   </button>
                 </div>
                 {surveyStage === 1 ? (
+                  <>
+                    <h3 id="survey-modal-title" className={styles.modalTitle}>
+                      가장 생각을 정리하기 어려운 카테고리는 무엇인가요?
+                    </h3>
+                    <p className={styles.modalBody}>
+                      가장 가까운 답변 하나를 골라주세요.
+                    </p>
+                    <div className={styles.modalCheckboxGroup}>
+                      {thoughtCategoryOptions.map((option) => {
+                        const checked = surveyDraft.thoughtCategory === option.id;
+
+                        return (
+                          <label
+                            key={option.id}
+                            className={`${styles.modalCheckbox} ${
+                              checked ? styles.modalCheckboxChecked : ""
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="thought-category"
+                              checked={checked}
+                              onChange={() =>
+                                updateSurveyDraft((draft) => ({
+                                  ...draft,
+                                  thoughtCategory: option.id,
+                                  thoughtCategoryOther:
+                                    option.id === "other"
+                                      ? draft.thoughtCategoryOther
+                                      : "",
+                                }))
+                              }
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {surveyDraft.thoughtCategory === "other" ? (
+                      <label className={styles.modalField}>
+                        <span className={styles.modalLabel}>기타 내용</span>
+                        <input
+                          className={styles.modalInput}
+                          type="text"
+                          value={surveyDraft.thoughtCategoryOther}
+                          onChange={(event) =>
+                            updateSurveyDraft((draft) => ({
+                              ...draft,
+                              thoughtCategoryOther: event.target.value,
+                            }))
+                          }
+                          placeholder="직접 적어주세요"
+                        />
+                      </label>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {surveyStage === 2 ? (
                   <>
                     <h3 id="survey-modal-title" className={styles.modalTitle}>
                       최근 2주 동안 가장 힘들었던 순간이 있었나요?
@@ -1459,7 +1609,7 @@ export default function Home() {
                   </>
                 ) : null}
 
-                {surveyStage === 2 ? (
+                {surveyStage === 3 ? (
                   <>
                     <h3 id="survey-modal-title" className={styles.modalTitle}>
                       지금은 어떻게 버티고 있나요?
@@ -1510,7 +1660,7 @@ export default function Home() {
                   </>
                 ) : null}
 
-                {surveyStage === 3 ? (
+                {surveyStage === 4 ? (
                   <>
                     <h3 id="survey-modal-title" className={styles.modalTitle}>
                       지금 방법에서 가장 아쉬운 점은 뭔가요?
@@ -1572,7 +1722,9 @@ export default function Home() {
                     : surveyStatusMessage}
                 </p>
                 <div className={styles.modalFooter}>
-                  {surveyStage === 2 || surveyStage === 3 ? (
+                  {surveyStage === 2 ||
+                  surveyStage === 3 ||
+                  surveyStage === 4 ? (
                     <button
                       type="button"
                       className={styles.modalSecondaryButton}
@@ -1590,7 +1742,7 @@ export default function Home() {
                     onClick={() => void handleSurveyNext()}
                     disabled={isRegistrationSaving}
                   >
-                    {surveyStage === 3 ? "제출하기" : "다음"}
+                    {surveyStage === 4 ? "제출하기" : "다음"}
                   </button>
                 </div>
               </div>

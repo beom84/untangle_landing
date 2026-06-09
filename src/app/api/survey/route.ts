@@ -3,6 +3,8 @@ import { LANDING_VARIANT } from "@/lib/experiment";
 type SurveyBody = {
   submissionKey: string;
   step: number;
+  thoughtCategory?: string;
+  thoughtCategoryOther?: string;
   painMoment?: string;
   currentMethods?: string[];
   currentMethodsOther?: string;
@@ -23,6 +25,8 @@ export async function POST(request: Request) {
   const {
     submissionKey,
     step,
+    thoughtCategory = "",
+    thoughtCategoryOther = "",
     painMoment = "",
     currentMethods = [],
     currentMethodsOther = "",
@@ -43,6 +47,8 @@ export async function POST(request: Request) {
       action: "survey",
       submissionKey,
       surveyStep: step,
+      thoughtCategory,
+      thoughtCategoryOther,
       painMoment,
       currentMethods,
       currentMethodsOther,

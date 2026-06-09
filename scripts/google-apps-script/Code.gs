@@ -14,6 +14,8 @@ const HEADERS = [
   "surveyCompletedAt",
   "updatedAt",
   "variant",
+  "thoughtCategory",
+  "thoughtCategoryOther",
 ];
 
 function doGet() {
@@ -112,6 +114,8 @@ function upsertSurvey_(sheet, payload) {
 
   record.submissionKey = payload.submissionKey;
   record.surveyStep = payload.surveyStep;
+  record.thoughtCategory = payload.thoughtCategory || "";
+  record.thoughtCategoryOther = payload.thoughtCategoryOther || "";
   record.painMoment = payload.painMoment || "";
   record.currentMethods = normalizeMethods_(payload.currentMethods);
   record.currentMethodsOther = payload.currentMethodsOther || "";
