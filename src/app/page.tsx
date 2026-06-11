@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { initAmplitude, track } from "@/lib/amplitude";
 import type { ContactMode } from "@/lib/contact";
@@ -1344,6 +1345,13 @@ export default function Home() {
                       ? "남겨주신 답변을 바탕으로 Untangle을 더 세심하게 준비할게요."
                       : "이어서 열리는 설문에서 다음 또는 제출 버튼을 누르면 답변이 저장됩니다."}
                   </p>
+                  <p className={styles.preRegisterConsent}>
+                    등록 시 이용 약관 및{" "}
+                    <Link href="/privacy" className={styles.inlineTextLink}>
+                      개인정보 처리방침
+                    </Link>
+                    에 동의하게 됩니다.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -1426,7 +1434,11 @@ export default function Home() {
                     {isSubmitting ? "등록 중..." : "사전 등록하기"}
                   </button>
                   <p className={styles.preRegisterConsent}>
-                    등록 시 이용 약관 및 개인정보 처리방침에 동의하게 됩니다.
+                    등록 시 이용 약관 및{" "}
+                    <Link href="/privacy" className={styles.inlineTextLink}>
+                      개인정보 처리방침
+                    </Link>
+                    에 동의하게 됩니다.
                   </p>
                 </>
               )}
@@ -1468,6 +1480,25 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <footer className={styles.siteFooter}>
+          <div className={styles.siteFooterInner}>
+            <p className={styles.siteFooterBrand}>Untangle</p>
+            <div className={styles.siteFooterLinks}>
+              <Link href="/privacy" className={styles.siteFooterLink}>
+                개인정보 처리방침
+              </Link>
+              <a
+                href="https://open.kakao.com/o/sgF3hZyi"
+                target="_blank"
+                rel="noreferrer"
+                className={styles.siteFooterLink}
+              >
+                문의하기
+              </a>
+            </div>
+          </div>
+        </footer>
       </main>
 
       {shouldShowSurveyModal ? (

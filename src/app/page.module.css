@@ -481,6 +481,17 @@
   line-height: 1.5;
 }
 
+.inlineTextLink {
+  color: #fff4e6;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inlineTextLink:hover {
+  color: #ffd8b8;
+}
+
 .preRegisterError {
   margin-top: 8px;
   color: #ffcaca;
@@ -751,6 +762,49 @@
 
 .faqSection {
   padding: 72px 0 46px;
+}
+
+.siteFooter {
+  padding: 24px 24px 44px;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  background: #08110f;
+}
+
+.siteFooterInner {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.siteFooterBrand {
+  margin: 0;
+  color: #f3e6d7;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.siteFooterLinks {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.siteFooterLink {
+  color: rgb(255 255 255 / 72%);
+  font-size: 13px;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.siteFooterLink:hover {
+  color: #fff4e6;
 }
 
 .hiddenSection {
@@ -1156,6 +1210,20 @@
 
   .faqSection {
     padding: 54px 0 22px;
+  }
+
+  .siteFooter {
+    padding: 22px 16px 38px;
+  }
+
+  .siteFooterInner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .siteFooterLinks {
+    gap: 12px 16px;
+    justify-content: flex-start;
   }
 
   .faqTitle {
